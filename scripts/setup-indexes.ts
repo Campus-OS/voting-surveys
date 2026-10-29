@@ -1,6 +1,6 @@
 import { MongoClient } from "mongodb";
 
-const uri = process.env.MONGODB_URI || "mongodb+srv://mjat3599_db_user:swwPK9In2cYjjc7N@cluster0.ne9jkw8.mongodb.net/?retryWrites=true&w=majority";
+const uri = process.env.MONGODB_URI as string;
 const dbName = process.env.MONGODB_DB || "voting";
 
 async function setupIndexes() {
