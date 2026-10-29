@@ -433,7 +433,7 @@ export function VoteWizard({ survey }: VoteWizardProps) {
                 variant={isLocationVerified ? "outline" : "default"}
               >
                 <MapPin className="h-4 w-4 mr-2" />
-                {isLocationVerified ? "Re-verify Location" : "Acquire & Verify Location"}
+                {isLocationVerified ? "दोबारा लोकेशन चेक करें" : "लोकेशन चालू करके जाँचें"}
               </Button>
             </div>
           </CardContent>
