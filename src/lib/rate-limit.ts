@@ -31,20 +31,20 @@ if (typeof setInterval !== "undefined") {
 }
 
 let redisClient: Redis | null = null;
-if (env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN) {
-  try {
-    redisClient = new Redis({
-      url: env.UPSTASH_REDIS_REST_URL,
-      token: env.UPSTASH_REDIS_REST_TOKEN,
-    });
-    logger.info("Upstash Redis rate limiter initialized");
-  } catch (err) {
-    logger.warn("Failed to initialize Upstash Redis, defaulting to in-memory fallback", {
-      error: err instanceof Error ? err.message : String(err),
-    });
-    redisClient = null;
-  }
-}
+// if (env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN) {
+//   try {
+//     redisClient = new Redis({
+//       url: env.UPSTASH_REDIS_REST_URL,
+//       token: env.UPSTASH_REDIS_REST_TOKEN,
+//     });
+//     logger.info("Upstash Redis rate limiter initialized");
+//   } catch (err) {
+//     logger.warn("Failed to initialize Upstash Redis, defaulting to in-memory fallback", {
+//       error: err instanceof Error ? err.message : String(err),
+//     });
+//     redisClient = null;
+//   }
+// }
 
 /**
  * Checks rate limit for a specific identifier and action.

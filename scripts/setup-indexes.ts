@@ -1,10 +1,16 @@
 import { MongoClient } from "mongodb";
+import * as dotenv from "dotenv";
+import * as path from "path";
+
+// Load .env.local first (Next.js convention), then .env as fallback
+dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
+dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
 const uri = process.env.MONGODB_URI as string;
 const dbName = process.env.MONGODB_DB || "voting";
 
 async function setupIndexes() {
-  console.log(`[setup-indexes] Connecting to MongoDB: ${dbName}...`);
+  console.log(`[setup-indexes] Connecting to MongoDB: ${dbName}...`, {uri});
   const client = new MongoClient(uri, {
     serverSelectionTimeoutMS: 8000,
   });
