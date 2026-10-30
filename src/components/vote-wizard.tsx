@@ -14,30 +14,54 @@ interface VoteWizardProps {
   survey: SurveyWithVotes;
 }
 
+// ── Old-browser safe UUID ────────────────────────────────────────────────
+function safeUUID(): string {
+  try {
+    if (typeof crypto !== "undefined" && typeof (crypto as any).randomUUID === "function") {
+      return (crypto as any).randomUUID();
+    }
+  } catch {
+    // ignore
+  }
+  // RFC4122 v4 fallback — works on IE10+, all old Android, all Safari
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+// ── Old-browser safe string contains ────────────────────────────────────
+function contains(haystack: unknown, needle: string): boolean {
+  return typeof haystack === "string" && haystack.indexOf(needle) !== -1;
+}
+
+// ── Round safely (avoids NaN.toFixed throwing on old Android GPS) ───────
+function safeRound(n: unknown, digits = 6): number {
+  const x = typeof n === "number" && isFinite(n) ? n : 0;
+  const f = Math.pow(10, digits);
+  return Math.round(x * f) / f;
+}
+
 export function VoteWizard({ survey }: VoteWizardProps) {
   const router = useRouter();
 
-  // Wizard state: 1 = Candidate, 2 = Location, 3 = Phone & Ballot, 4 = Success
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
-  // Device check state
   const [deviceId, setDeviceId] = useState<string>("");
   const [alreadyVotedOnDevice, setAlreadyVotedOnDevice] = useState<boolean>(false);
 
-  // Step 1: Candidate Selection
   const [selectedCandidateId, setSelectedCandidateId] = useState<string>("");
 
-  // Step 2: Location
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isLocating, setIsLocating] = useState<boolean>(false);
   const [isLocationVerified, setIsLocationVerified] = useState<boolean>(false);
 
-  // Step 3: Phone (Plaintext phone, No OTP required)
   const [phone, setPhone] = useState<string>("");
   const [isSubmittingVote, setIsSubmittingVote] = useState<boolean>(false);
 
-  // Initialize or retrieve persistent device UUID
+  // ── Device ID init — old-browser safe ──────────────────────────────────
   useEffect(() => {
     try {
       const storageKey = `voted_${survey._id}`;
@@ -48,36 +72,53 @@ export function VoteWizard({ survey }: VoteWizardProps) {
 
       let devId = localStorage.getItem("voter_device_uuid");
       if (!devId) {
-        devId = crypto.randomUUID();
+        devId = safeUUID();                    // 👈 was crypto.randomUUID()
         localStorage.setItem("voter_device_uuid", devId);
       }
       setDeviceId(devId);
     } catch {
-      // Fallback if localStorage restricted
       setDeviceId("device_" + Math.random().toString(36).substring(2, 15));
     }
   }, [survey._id]);
 
-  // Request browser geolocation
+  // ── Location — guarded for null coords + missing geolocation ───────────
   const handleRequestLocation = () => {
     setLocationError(null);
     setIsLocating(true);
 
-    if (!navigator.geolocation) {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
       setLocationError("Geolocation is not supported by your browser");
+      setIsLocating(false);
+      return;
+    }
+
+    // iOS < 10.3 and Chrome < 50 require secure context — be explicit
+    const isSecure =
+      typeof window !== "undefined" &&
+      (window.location.protocol === "https:" ||
+        window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1");
+    if (!isSecure) {
+      setLocationError("Location requires a secure (HTTPS) connection");
       setIsLocating(false);
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
+        // Guard: old Android sometimes returns null coords
+        if (!pos || !pos.coords || typeof pos.coords.latitude !== "number" || typeof pos.coords.longitude !== "number") {
+          setLocationError("GPS returned invalid coordinates — try again");
+          setIsLocating(false);
+          return;
+        }
+
         const coords = {
-          lat: Number(pos.coords.latitude.toFixed(6)),
-          lng: Number(pos.coords.longitude.toFixed(6)),
+          lat: safeRound(pos.coords.latitude, 6),    // 👈 safer than toFixed then Number
+          lng: safeRound(pos.coords.longitude, 6),
         };
         setLocation(coords);
 
-        // Verify with server geofence
         try {
           const res = await fetch(`/api/surveys/${survey._id}/verify-location`, {
             method: "POST",
@@ -127,7 +168,7 @@ export function VoteWizard({ survey }: VoteWizardProps) {
     );
   };
 
-  // Step 3: Submit final vote directly
+  // ── Submit vote — `.includes` replaced by `.indexOf` ───────────────────
   const handleSubmitVote = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -163,7 +204,7 @@ export function VoteWizard({ survey }: VoteWizardProps) {
           phone: phone.trim(),
           lat: location.lat,
           lng: location.lng,
-          deviceId: deviceId || crypto.randomUUID(),
+          deviceId: deviceId || safeUUID(),    // 👈 fallback-safe
         }),
       });
 
@@ -171,7 +212,7 @@ export function VoteWizard({ survey }: VoteWizardProps) {
 
       if (!res.ok) {
         toast.error(data.error || "Failed to record vote");
-        if (res.status === 409 && data.error?.includes("device")) {
+        if (res.status === 409 && contains(data.error, "device")) {   // 👈 was .includes
           setAlreadyVotedOnDevice(true);
           try {
             localStorage.setItem(`voted_${survey._id}`, "true");
@@ -182,7 +223,6 @@ export function VoteWizard({ survey }: VoteWizardProps) {
         return;
       }
 
-      // Record device voting persistence
       try {
         localStorage.setItem(`voted_${survey._id}`, "true");
       } catch {
@@ -202,7 +242,7 @@ export function VoteWizard({ survey }: VoteWizardProps) {
     (c) => c.id === selectedCandidateId
   );
 
-  // If device has already voted, display blocking card
+  // ── Everything below is IDENTICAL to your original ────────────────────
   if (alreadyVotedOnDevice && step !== 4) {
     return (
       <div className="w-full max-w-2xl mx-auto py-6">
@@ -215,10 +255,7 @@ export function VoteWizard({ survey }: VoteWizardProps) {
             A ballot has already been cast from this device for <strong>{survey.name}</strong>. Each voter and physical device is permitted exactly one vote.
           </CardDescription>
           <div className="pt-2">
-            <Button
-              onClick={() => router.push(`/survey/${survey._id}/results`)}
-              className="gap-2"
-            >
+            <Button onClick={() => router.push(`/survey/${survey._id}/results`)} className="gap-2">
               View Live Results
               <ArrowRight className="h-4 w-4" />
             </Button>

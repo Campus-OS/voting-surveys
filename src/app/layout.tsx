@@ -4,6 +4,9 @@ import "./globals.css";
 import { Nav } from "@/components/nav";
 import { Providers } from "@/components/providers";
 
+import { Noto_Sans_Devanagari } from "next/font/google";
+const devanagari = Noto_Sans_Devanagari({ subsets: ["devanagari"], weight: ["400","600","700"] });
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
