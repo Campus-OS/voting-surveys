@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { BarChart3, RefreshCw, Share2, Vote, ArrowLeft } from "lucide-react";
 import type { CandidateWithVotes } from "@/lib/types";
+import { ShareButton } from "./share-button";
 
 interface SurveyResultsData {
   _id: string;
@@ -80,16 +81,6 @@ export function ResultsClient({ surveyId }: { surveyId: string }) {
     };
   }, [surveyId, fetchResults]);
 
-  const handleShare = () => {
-    const shareUrl = `${window.location.origin}/survey/${surveyId}`;
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(shareUrl);
-      toast.success("Survey voting link copied to clipboard!");
-    } else {
-      toast.info(`Share link: ${shareUrl}`);
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="max-w-3xl mx-auto space-y-6 py-6">
@@ -132,9 +123,7 @@ export function ResultsClient({ surveyId }: { surveyId: string }) {
         </Link>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleShare} className="gap-1.5">
-            <Share2 className="h-4 w-4 text-blue-600" /> Share Survey Link
-          </Button>
+          <ShareButton surveyId={surveyId} title={data.name} />
           <Button
             variant="outline"
             size="sm"
