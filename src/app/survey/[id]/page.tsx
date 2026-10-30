@@ -2,10 +2,17 @@ import React, { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { ObjectId } from "mongodb";
+import Script from "next/script";
 import { getCollection } from "@/lib/mongodb";
 import { VoteWizard } from "@/components/vote-wizard";
+
 import { Skeleton } from "@/components/ui/skeleton";
-import type { SurveyDoc, VoteDoc, SurveyWithVotes, CandidateWithVotes } from "@/lib/types";
+import type {
+  SurveyDoc,
+  VoteDoc,
+  SurveyWithVotes,
+  CandidateWithVotes,
+} from "@/lib/types";
 import type { Metadata } from "next";
 
 export const instant = false;
@@ -14,18 +21,17 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-
 // ─────────────────────────────────────────────────────────
-// SERVER-SIDE METADATA
+// सर्वर-साइड मेटाडेटा
 // ─────────────────────────────────────────────────────────
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
 
-  // Guard: valid ObjectId shape before hitting DB
+  // गार्ड: DB तक जाने से पहले ObjectId का आकार जाँचें
   if (!/^[0-9a-fA-F]{24}$/.test(id)) {
     return {
-      title: "Survey Not Found",
-      description: "The survey you are looking for does not exist.",
+      title: "सर्वे नहीं मिला",
+      description: "जिस सर्वे को आप ढूँढ रहे हैं, वह मौजूद नहीं है।",
     };
   }
 
@@ -35,34 +41,41 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
     if (!survey) {
       return {
-        title: "Survey Not Found",
-        description: "The survey you are looking for does not exist.",
+        title: "सर्वे नहीं मिला",
+        description: "जिस सर्वे को आप ढूँढ रहे हैं, वह मौजूद नहीं है।",
       };
     }
 
     const surveyUrl = `${process.env.NEXT_PUBLIC_APP_URL}/survey/${id}`;
-    const description =
-      survey.description ||
-      `Cast your vote for ${survey.name}. Your location is verified to ensure fair participation.`;
+
+    // उम्मीदवारों के नाम जोड़ें ताकि शेयरिंग प्रीव्यू में दिखें
+    const candidateLine =
+      survey.candidates?.length
+        ? `उम्मीदवार: ${survey.candidates.slice(0, 4).map((c) => c.name).join(", ")}।`
+        : "";
+
+    const description = `${survey.description ||
+      `अपने पसंदीदा उम्मीदवार को वोट दें — ${survey.name}। आपका स्थान सत्यापित किया जाएगा ताकि भागीदारी निष्पक्ष रहे।`
+      } ${candidateLine}`.trim();
 
     return {
-      title: `${survey.name} | Digital Udaan Voting`,
+      title: `${survey.name} | डिजिटल उड़ान वोटिंग`,
       description,
       keywords: [
-        "voting",
-        "survey",
-        "election",
+        "वोटिंग",
+        "सर्वे",
+        "चुनाव",
         survey.name,
-        "digital udaan",
+        "डिजिटल उड़ान",
         ...(survey.candidates?.slice(0, 5).map((c) => c.name) || []),
       ],
       openGraph: {
         title: survey.name,
         description,
         url: surveyUrl,
-        siteName: "Digital Udaan Voting",
+        siteName: "डिजिटल उड़ान वोटिंग",
         type: "website",
-        locale: "en_IN",
+        locale: "hi_IN",
         images: [
           {
             url: `${process.env.NEXT_PUBLIC_APP_URL}/api/og?surveyId=${id}`,
@@ -80,21 +93,23 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       },
       robots: survey.isActive
         ? { index: true, follow: true }
-        : { index: false, follow: false }, // closed surveys should not be indexed
+        : { index: false, follow: false },
       alternates: {
         canonical: surveyUrl,
       },
     };
   } catch (err) {
-    // Never let metadata failure break the page
-    console.error("generateMetadata error:", err);
+    console.error("generateMetadata त्रुटि:", err);
     return {
-      title: "Voting Survey",
-      description: "Cast your vote in this community survey.",
+      title: "वोटिंग सर्वे",
+      description: "इस सामुदायिक सर्वे में अपना वोट दर्ज करें।",
     };
   }
 }
 
+// ─────────────────────────────────────────────────────────
+// डेटा लोडर
+// ─────────────────────────────────────────────────────────
 async function SurveyDataLoader({ surveyId }: { surveyId: string }) {
   await connection();
   if (!/^[0-9a-fA-F]{24}$/.test(surveyId)) {
@@ -109,9 +124,10 @@ async function SurveyDataLoader({ surveyId }: { surveyId: string }) {
     notFound();
   }
 
+  // असली वोट्स की गिनती (dummy: true वाले बहिष्कृत)
   const voteAgg = await votesCol
     .aggregate<{ _id: string; count: number }>([
-      { $match: { surveyId } },
+      { $match: { surveyId, dummy: { $ne: true } } },
       { $group: { _id: "$candidateId", count: { $sum: 1 } } },
     ])
     .toArray();
@@ -146,9 +162,35 @@ async function SurveyDataLoader({ surveyId }: { surveyId: string }) {
     candidatesWithVotes,
   };
 
-  return <VoteWizard survey={surveyWithVotes} />;
+  return (
+    <>
+      <Script
+        id="survey-jsonld"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Event",
+            name: survey.name,
+            description: survey.description,
+            startDate: survey.createdAt,
+            eventStatus: survey.isActive
+              ? "https://schema.org/EventScheduled"
+              : "https://schema.org/EventCancelled",
+            inLanguage: "hi",
+          }),
+        }}
+      />
+      <div className="space-y-8">
+        <VoteWizard survey={surveyWithVotes} />
+      </div>
+    </>
+  );
 }
 
+// ─────────────────────────────────────────────────────────
+// स्केलेटन (लोडिंग स्थिति)
+// ─────────────────────────────────────────────────────────
 function WizardSkeleton() {
   return (
     <div className="w-full max-w-2xl mx-auto space-y-6">
@@ -166,6 +208,9 @@ function WizardSkeleton() {
   );
 }
 
+// ─────────────────────────────────────────────────────────
+// पेज (मुख्य निर्यात)
+// ─────────────────────────────────────────────────────────
 export default async function SurveyVotePage({ params }: PageProps) {
   await connection();
   const { id } = await params;
