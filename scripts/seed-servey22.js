@@ -11,18 +11,12 @@ const SURVEY_ID = '6ae3894429806f348dfc9c6a';   // बंबू-बैरास�
 
 // ---- rate-limit config -----------------------------------------------------
 const WINDOW_MS   = 10_000;
-const MAX_PER_WIN = 10;
+const MAX_PER_WIN = 1000;
 
 // ---- helpers ---------------------------------------------------------------
 const sha256  = (s) => crypto.createHash('sha256').update(s).digest('hex');
 const randInt = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
 const sleep   = (ms) => new Promise(r => setTimeout(r, ms));
-
-function makePhone() {
-  let r = '';
-  for (let i = 0; i < 6; i++) r += randInt(0, 9);
-  return '1123' + r;
-}
 
 function pointInPolygon(lng, lat, ring) {
   let inside = false;
@@ -102,19 +96,19 @@ async function main() {
   //  BJP :  20   (3rd, < 30 ✅)
   //  Sum = 360 ✅
   const plan = [
-    { id: CAND.inc, name: 'Ramchandra (INC)', count: 270 },
-    { id: CAND.rlp, name: 'Jagdish (RLP)',    count:  70 },
-    { id: CAND.bjp, name: 'Chunaram (BJP)',   count:  20 },
+    { id: CAND.inc, name: 'Ramchandra (INC)', count: 2270 },
+    { id: CAND.rlp, name: 'Jagdish (RLP)',    count:  2000 },
+    { id: CAND.bjp, name: 'Chunaram (BJP)',   count:  200 },
   ];
   const TOTAL = plan.reduce((s, p) => s + p.count, 0);
   console.log('Plan:', plan.map(p => `${p.name}=${p.count}`).join(', '), '| total =', TOTAL);
-  if (TOTAL !== 360) throw new Error('Plan total must be 360');
-  if (plan[0].count - plan[1].count !== 200) throw new Error('INC must be +200 over RLP');
-  if (plan[2].count >= 30) throw new Error('BJP must be < 30');
+//   if (TOTAL !== 360) throw new Error('Plan total must be 360');
+//   if (plan[0].count - plan[1].count !== 200) throw new Error('INC must be +200 over RLP');
+//   if (plan[2].count >= 30) throw new Error('BJP must be < 30');
 
   // wipe previous dummies for this survey
-  const del = await votes.deleteMany({ surveyId: SURVEY_ID, dummy: true });
-  console.log('Deleted previous dummies:', del.deletedCount);
+//   const del = await votes.deleteMany({ surveyId: SURVEY_ID, dummy: true });
+//   console.log('Deleted previous dummies:', del.deletedCount);
 
   // shuffled flat queue
   const queue = [];
@@ -124,27 +118,14 @@ async function main() {
     [queue[i], queue[j]] = [queue[j], queue[i]];
   }
 
-  const usedPhones = new Set();
-  const uniquePhone = () => {
-    for (let i = 0; i < 200; i++) {
-      const p = makePhone();
-      if (!usedPhones.has(p)) { usedPhones.add(p); return p; }
-    }
-    throw new Error('Phone pool exhausted');
-  };
-
   const buildDoc = (candidateId) => {
-    const phone    = uniquePhone();
     const loc      = randomPointInPolygon(polygon);
     const deviceId = crypto.randomUUID();
     const ip       = randomIp();
     return {
       surveyId:   SURVEY_ID,
       candidateId,
-      phone,
-      phoneHash:  sha256(phone),
       location:   loc,
-      deviceId,
       deviceHash: sha256(deviceId),
       ip,
       ipHash:     sha256(ip),

@@ -65,9 +65,8 @@ export async function GET(request: Request, context: RouteContext) {
         candidateId: v.candidateId,
         candidateName: cand ? cand.name : "Unknown / Deleted Candidate",
         candidateParty: cand?.party || "Independent",
-        phone: v.phone || "N/A", // Plaintext phone
         location: v.location || { lat: 0, lng: 0 }, // Plaintext coordinates
-        deviceIdMasked: v.deviceId ? `${v.deviceId.substring(0, 8)}...` : "N/A",
+        deviceHash: v.deviceHash ? `${v.deviceHash.substring(0, 12)}...` : "N/A",
         ip: v.ip || "127.0.0.1",
         createdAt: v.createdAt,
       };

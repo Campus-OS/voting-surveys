@@ -26,13 +26,10 @@ export interface VoteDoc {
   _id: ObjectId;
   surveyId: string; // string, not ObjectId
   candidateId: string;
-  phone: string; // Plaintext phone number
-  phoneHash: string; // SHA-256 of phone
   location: {
     lat: number;
     lng: number;
   };
-  deviceId: string; // Unique client device identifier
   deviceHash: string; // SHA-256 of device identifier
   ip: string; // Client IP
   ipHash: string; // SHA-256 of IP

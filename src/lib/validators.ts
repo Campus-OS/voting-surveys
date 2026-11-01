@@ -117,12 +117,23 @@ export const sendOtpSchema = z
   })
   .strict();
 
+export const PHONE_REGEX = /^\+?[1-9]\d{6,14}$/;
+export const normalizePhone = (s: string) => s.replace(/[\s\-().]/g, "");
+
+export const OptionalPhoneSchema = z
+  .preprocess((v) => {
+    if (typeof v !== "string") return undefined;
+    const trimmed = v.trim();
+    if (!trimmed) return undefined;          // treat "" / "   " as "not provided"
+    return normalizePhone(trimmed);
+  }, z.string().refine((s) => PHONE_REGEX.test(s), {
+    message: "Phone number must be in valid international format (e.g. +12345678901)",
+  }))
+  .optional();
+
 export const castVoteSchema = z
   .object({
     candidateId: z.string().min(1, "Candidate ID is required"),
-    phone: z
-      .string()
-      .regex(/^\+?[1-9]\d{6,14}$/, "Phone number must be in valid international format (e.g. +12345678901)"),
     lat: z
       .number()
       .min(-90, "Latitude must be >= -90")

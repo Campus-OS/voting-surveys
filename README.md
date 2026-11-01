@@ -26,7 +26,7 @@ flowchart TD
         SurveyRoutes["/api/surveys/* & /api/admin/*"]
         GeoCheck["Server-Side Ray-Casting Algorithm"]
         TwilioService["Twilio Verify API (SMS OTP)"]
-        Hasher["SHA-256 (Zero-Knowledge Phone & IP Hash)"]
+        Hasher["SHA-256 Device & IP Hashing"]
     end
 
     subgraph Database ["MongoDB Atlas (Native Driver Connection Pool)"]
@@ -165,14 +165,11 @@ flowchart TD
 - **Layer 2 (Server Component Guard)**: `src/lib/admin-guard.ts` executes `requireAdmin()` on every admin page, cryptographically inspecting the session and verifying that `user.role === "admin"`.
 - **Layer 3 (API Route Guard)**: `src/lib/api-auth.ts` executes `requireAdminApi(req)` on every administrative API endpoint, returning structured 401 or 403 JSON responses upon authorization failure.
 
-### 2. Zero-Knowledge Voter Privacy & Uniqueness
-- **Direct Mobile Verification (No SMS OTP Required)**: Voters enter their valid mobile number, which is cryptographically hashed with SHA-256 before storage. No SMS wait times or third-party SMS failures.
-- **No Raw Phone Numbers Stored**: All phone numbers are hashed using SHA-256 (`crypto.createHash('sha256')`) prior to persistence.
-- **No Raw IPs Stored**: Client IP addresses are extracted in order (`cf-connecting-ip` → `x-real-ip` → `x-forwarded-for` first IP → fallback) and hashed using SHA-256.
-- **Database Level Uniqueness**:
-  - Compound unique index: `{ surveyId: 1, phoneHash: 1 }`
-  - Compound unique index: `{ surveyId: 1, ipHash: 1 }`
-  - Any duplicate attempt triggers MongoDB error code `11000`, returned to the client as a clean HTTP `409 Conflict`.
+### 2. Voter Data & Uniqueness
+- **No ballot phone numbers**: The ballot flow does not request, store, or use mobile numbers.
+- **Device hash only**: A SHA-256 hash of the client device identifier is stored for one-vote-per-device enforcement; the raw identifier is not stored.
+- **Location and IP auditing**: GPS coordinates and the extracted client IP are retained on each ballot. The IP hash is also retained for lookup and rate limiting.
+- **Database-level uniqueness**: The compound `{ surveyId: 1, deviceHash: 1 }` index enforces one ballot per device. IP is informational and is not unique, so voters sharing a network are not blocked.
 
 ### 3. Server-Side Geofencing
 - Client-provided GPS coordinates are **never trusted blindly**.
@@ -226,9 +223,9 @@ Run the automated index migration script:
 ```bash
 pnpm run db:setup
 ```
-This builds all required unique, compound, and TTL indexes on MongoDB Atlas:
-- `votes`: `{ surveyId: 1, phoneHash: 1 }` (unique)
-- `votes`: `{ surveyId: 1, ipHash: 1 }` (unique)
+This builds all required unique, compound, and TTL indexes on MongoDB Atlas and removes legacy phone/raw-device fields from existing ballots:
+- `votes`: `{ surveyId: 1, deviceHash: 1 }` (unique)
+- `votes`: `{ surveyId: 1, ipHash: 1 }` (non-unique)
 - `votes`: `{ surveyId: 1, candidateId: 1 }`
 - `surveys`: `{ isActive: 1, createdAt: -1 }`
 - `user`: `{ email: 1 }` (unique)

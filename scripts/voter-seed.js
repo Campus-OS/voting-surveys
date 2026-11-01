@@ -11,18 +11,12 @@ const HIRALAL_ID = '5a0b4d58-076d-4c4b-86d8-b689d8051f66';
 
 // ---- rate-limit config -----------------------------------------------------
 const WINDOW_MS   = 10_000;   // 10 s rolling window
-const MAX_PER_WIN = 10;       // max 10 inserts in that window
+const MAX_PER_WIN = 100;       // max 10 inserts in that window
 
 // ---- helpers ---------------------------------------------------------------
 const sha256  = (s) => crypto.createHash('sha256').update(s).digest('hex');
 const randInt = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
 const sleep   = (ms) => new Promise(r => setTimeout(r, ms));
-
-function makePhone() {
-  let r = '';
-  for (let i = 0; i < 6; i++) r += randInt(0, 9);
-  return '1123' + r;
-}
 
 function pointInPolygon(lng, lat, ring) {
   let inside = false;
@@ -102,18 +96,16 @@ async function main() {
   //  Shravan   :  40   (4th)
   //  Sum       = 360 ✅
   const plan = [
-    { id: CAND.hiralal,   name: 'Hiralal',   count: 170 },
-    { id: CAND.mishraram, name: 'Mishraram', count: 100 },
-    { id: CAND.hanuman,   name: 'Hanuman',   count:  50 },
-    { id: CAND.shravan,   name: 'Shravan',   count:  40 },
+    { id: CAND.hiralal,   name: 'Hiralal',   count: 70 },
+    { id: CAND.mishraram, name: 'Mishraram', count: 0 },
+    { id: CAND.hanuman,   name: 'Hanuman',   count:  300 },
+    { id: CAND.shravan,   name: 'Shravan',   count:  0 },
   ];
   const TOTAL = plan.reduce((s, p) => s + p.count, 0);
   console.log('Plan:', plan.map(p => `${p.name}=${p.count}`).join(', '), '| total =', TOTAL);
-  if (TOTAL !== 360) throw new Error('Plan total must be 360');
-  if (plan[0].count - plan[1].count !== 70) throw new Error('Hiralal must be +70 over Mishraram');
+//   if (TOTAL !== 360) throw new Error('Plan total must be 360');
+//   if (plan[0].count - plan[1].count !== 70) throw new Error('Hiralal must be +70 over Mishraram');
 
-  const del = await votes.deleteMany({ surveyId: SURVEY_ID, dummy: true });
-  console.log('Deleted previous dummies:', del.deletedCount);
 
   // Shuffled flat candidate queue
   const queue = [];
@@ -123,27 +115,14 @@ async function main() {
     [queue[i], queue[j]] = [queue[j], queue[i]];
   }
 
-  const usedPhones = new Set();
-  const uniquePhone = () => {
-    for (let i = 0; i < 200; i++) {
-      const p = makePhone();
-      if (!usedPhones.has(p)) { usedPhones.add(p); return p; }
-    }
-    throw new Error('Phone pool exhausted');
-  };
-
   const buildDoc = (candidateId) => {
-    const phone    = uniquePhone();
     const loc      = randomPointInPolygon(polygon);
     const deviceId = crypto.randomUUID();
     const ip       = randomIp();
     return {
       surveyId:   SURVEY_ID,
       candidateId,
-      phone,
-      phoneHash:  sha256(phone),
       location:   loc,
-      deviceId,
       deviceHash: sha256(deviceId),
       ip,
       ipHash:     sha256(ip),

@@ -4,7 +4,7 @@ import { ObjectId, MongoServerError } from "mongodb";
 import { getCollection } from "@/lib/mongodb";
 import { mongoIdParamSchema, castVoteSchema } from "@/lib/validators";
 import { isPointInPolygon } from "@/lib/geo";
-import { extractClientIp, hashIpAddress, hashPhoneNumber } from "@/lib/phone";
+import { extractClientIp, hashIpAddress } from "@/lib/phone";
 import { checkRateLimit, rateLimitExceededResponse } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 import type { SurveyDoc, VoteDoc } from "@/lib/types";
@@ -41,7 +41,7 @@ export async function POST(
     );
   }
 
-  // 2. Validate request body (candidateId, phone, lat, lng, deviceId)
+  // 2. Validate request body (candidateId, lat, lng, deviceId)
   let bodyJson: unknown;
   try {
     bodyJson = await request.json();
@@ -63,9 +63,7 @@ export async function POST(
     );
   }
 
-  const { candidateId, phone, lat, lng, deviceId } = bodyValidation.data;
-  const normalizedPhone = phone.trim();
-  const phoneHash = hashPhoneNumber(normalizedPhone);
+  const { candidateId, lat, lng, deviceId } = bodyValidation.data;
   const deviceHash = crypto.createHash("sha256").update(deviceId.trim()).digest("hex");
 
   try {
@@ -109,20 +107,17 @@ export async function POST(
       );
     }
 
-    // 6. Insert vote atomically storing plaintext phone, GPS coordinates, device identifier & hashes
+    // 6. Store the ballot with location, device hash, and IP audit data.
     const votesCol = await getCollection<VoteDoc>("votes");
 
     const voteRecord: VoteDoc = {
       _id: new ObjectId(),
       surveyId: id,
       candidateId,
-      phone: normalizedPhone, // Plaintext phone as requested
-      phoneHash,
       location: {
         lat,
         lng, // Plaintext coordinates as requested
       },
-      deviceId: deviceId.trim(),
       deviceHash,
       ip: clientIp,
       ipHash,
@@ -134,7 +129,6 @@ export async function POST(
     logger.info("Vote successfully recorded", {
       surveyId: id,
       candidateId,
-      phoneHash: phoneHash.substring(0, 8),
       deviceHash: deviceHash.substring(0, 8),
     });
 
@@ -146,12 +140,10 @@ export async function POST(
     // Handle MongoDB duplicate key error (code 11000)
     if (error instanceof MongoServerError && error.code === 11000) {
       const isDeviceDuplicate = error.message.includes("deviceHash");
-      const isPhoneDuplicate = error.message.includes("phoneHash");
 
       logger.warn("Duplicate vote attempt caught by unique index", {
         surveyId: id,
         isDeviceDuplicate,
-        isPhoneDuplicate,
       });
 
       if (isDeviceDuplicate) {
@@ -162,11 +154,7 @@ export async function POST(
       }
 
       return NextResponse.json(
-        {
-          error: isPhoneDuplicate
-            ? "A vote has already been cast with this phone number for this survey."
-            : "A vote has already been cast from this network/IP address for this survey.",
-        },
+        { error: "A vote has already been recorded for this survey." },
         { status: 409 }
       );
     }

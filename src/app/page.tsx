@@ -16,7 +16,7 @@ async function SurveyList() {
   const votesCol = await getCollection<VoteDoc>("votes");
 
   const surveys = await surveysCol
-    .find({ isActive: true })
+    .find({})
     .sort({ createdAt: -1 })
     .toArray();
 
@@ -25,10 +25,10 @@ async function SurveyList() {
       <div className="rounded-xl border border-dashed border-zinc-300 dark:border-zinc-800 p-12 text-center">
         <Vote className="mx-auto h-12 w-12 text-zinc-400 mb-3" />
         <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-          No Active Surveys Found
+          No Public Surveys Found
         </h3>
         <p className="mt-1 text-sm text-zinc-500 max-w-sm mx-auto">
-          There are currently no active public voting surveys in this district. Check back soon or contact your local election administrator.
+          There are currently no public surveys to display. Check back soon or contact your local election administrator.
         </p>
       </div>
     );
@@ -61,8 +61,8 @@ async function SurveyList() {
                 <CardTitle className="text-lg font-bold line-clamp-1">
                   {survey.name}
                 </CardTitle>
-                <Badge variant="success" className="shrink-0 text-[11px]">
-                  Active
+                <Badge variant={survey.isActive ? "success" : "secondary"} className="shrink-0 text-[11px]">
+                  {survey.isActive ? "Active" : "Closed"}
                 </Badge>
               </div>
               {survey.description && (
@@ -84,16 +84,19 @@ async function SurveyList() {
               </div>
             </CardContent>
             <CardFooter className="flex gap-2 pt-0">
-              <Link href={`/survey/${sid}`} className="flex-1">
-                <Button className="w-full text-xs font-semibold gap-1.5">
-                  Vote Now <ArrowRight className="h-3.5 w-3.5" />
+              <Link href={survey.isActive ? `/survey/${sid}` : `/survey/${sid}/results`} className="flex-1">
+                <Button className="w-full text-xs font-semibold gap-1.5" variant={survey.isActive ? "default" : "outline"}>
+                  {survey.isActive ? "Vote Now" : "View Results"}
+                  {survey.isActive && <ArrowRight className="h-3.5 w-3.5" />}
                 </Button>
               </Link>
-              <Link href={`/survey/${sid}/results`}>
-                <Button variant="outline" size="icon" title="View Live Results">
-                  <BarChart2 className="h-4 w-4 text-zinc-600" />
-                </Button>
-              </Link>
+              {survey.isActive && (
+                <Link href={`/survey/${sid}/results`}>
+                  <Button variant="outline" size="icon" title="View Live Results">
+                    <BarChart2 className="h-4 w-4 text-zinc-600" />
+                  </Button>
+                </Link>
+              )}
             </CardFooter>
           </Card>
         );
@@ -141,7 +144,7 @@ export default async function HomePage() {
           Decentralized Local Democracy
         </h1>
         <p className="text-base text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto">
-          Cast your verified ballot with GPS geofence auditing and zero-knowledge cryptographic phone hashing. One voter, one vote.
+          Cast your verified ballot with GPS geofence auditing and device-hash protection. One device, one vote.
         </p>
       </div>
 
@@ -149,7 +152,7 @@ export default async function HomePage() {
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-            Open Surveys in Your Area
+            Public Surveys in Your Area
           </h2>
         </div>
 

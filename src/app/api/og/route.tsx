@@ -45,7 +45,15 @@ export async function GET(req: Request) {
     .sort((a, b) => b.votes - a.votes)
     .slice(0, 4);
 
-  const palette = ["#2563eb", "#dc2626", "#16a34a", "#f59e0b"];
+  const themes = [
+    { background: "#0f172a", track: "#1e293b", bars: ["#38bdf8", "#fb7185", "#4ade80", "#fbbf24"] },
+    { background: "#2e1065", track: "#4c1d95", bars: ["#c084fc", "#f472b6", "#22d3ee", "#facc15"] },
+    { background: "#052e2b", track: "#134e4a", bars: ["#2dd4bf", "#a3e635", "#fb923c", "#818cf8"] },
+    { background: "#431407", track: "#7c2d12", bars: ["#f97316", "#facc15", "#fb7185", "#38bdf8"] },
+    { background: "#172554", track: "#1e3a8a", bars: ["#60a5fa", "#a78bfa", "#f472b6", "#34d399"] },
+    { background: "#3f0d2e", track: "#701a4b", bars: ["#f472b6", "#c084fc", "#fb923c", "#4ade80"] },
+  ];
+  const theme = themes[Math.floor(Math.random() * themes.length)];
   const [regular, bold] = await Promise.all([regularFont, boldFont]);
 
   try {
@@ -58,7 +66,7 @@ export async function GET(req: Request) {
             display: "flex",
             flexDirection: "column",
             padding: 60,
-            background: "#0f172a",
+            background: theme.background,
             color: "white",
             fontFamily: '"Noto Sans Devanagari", sans-serif',
           }}
@@ -120,7 +128,7 @@ export async function GET(req: Request) {
                     style={{
                       flex: 1,
                       height: 26,
-                      background: "#1e293b",
+                      background: theme.track,
                       borderRadius: 13,
                       overflow: "hidden",
                       display: "flex",     // 👈 extra safety
@@ -130,7 +138,7 @@ export async function GET(req: Request) {
                       style={{
                         width: `${Math.max(2, pct)}%`,
                         height: "100%",
-                        background: palette[i % palette.length],
+                        background: theme.bars[i % theme.bars.length],
                         display: "flex",   // 👈 extra safety
                       }}
                     />
@@ -159,6 +167,9 @@ export async function GET(req: Request) {
       {
         width: 1200,
         height: 630,
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        },
         fonts: [
           {
             name: "Noto Sans Devanagari",

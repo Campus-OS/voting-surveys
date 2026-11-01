@@ -1,5 +1,5 @@
 import React, { Suspense } from "react";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 import { ObjectId } from "mongodb";
 import Script from "next/script";
@@ -78,7 +78,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         locale: "hi_IN",
         images: [
           {
-            url: `https://voting-survey.digitaludaantechnologies.in/api/og?surveyId=${id}`,
+            url: `${process.env.NEXT_PUBLIC_APP_URL}/api/og?surveyId=${id}`,
             width: 1200,
             height: 630,
             alt: survey.name,
@@ -89,7 +89,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         card: "summary_large_image",
         title: survey.name,
         description,
-        images: [`https://voting-survey.digitaludaantechnologies.in/api/og?surveyId=${id}`],
+        images: [`${process.env.NEXT_PUBLIC_APP_URL}/api/og?surveyId=${id}`],
       },
       robots: survey.isActive
         ? { index: true, follow: true }
@@ -122,6 +122,10 @@ async function SurveyDataLoader({ surveyId }: { surveyId: string }) {
   const survey = await surveysCol.findOne({ _id: new ObjectId(surveyId) });
   if (!survey) {
     notFound();
+  }
+
+  if (!survey.isActive) {
+    redirect(`/survey/${surveyId}/results`);
   }
 
   // असली वोट्स की गिनती (dummy: true वाले बहिष्कृत)

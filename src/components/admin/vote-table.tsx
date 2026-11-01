@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { RefreshCw, ArrowLeft, ChevronLeft, ChevronRight, Phone, MapPin, Laptop, ExternalLink } from "lucide-react";
+import { RefreshCw, ArrowLeft, ChevronLeft, ChevronRight, MapPin, Laptop, ExternalLink } from "lucide-react";
 import Link from "next/link";
 
 interface VoteRecord {
@@ -13,12 +13,11 @@ interface VoteRecord {
   candidateId: string;
   candidateName: string;
   candidateParty: string;
-  phone: string;
   location: {
     lat: number;
     lng: number;
   };
-  deviceIdMasked: string;
+  deviceHash: string;
   ip: string;
   createdAt: string;
 }
@@ -129,9 +128,8 @@ export function VoteTable({ surveyId, surveyName }: VoteTableProps) {
               <thead className="bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 text-xs text-zinc-500 uppercase tracking-wider font-semibold">
                 <tr>
                   <th className="px-4 py-3">Candidate</th>
-                  <th className="px-4 py-3">Phone Number</th>
                   <th className="px-4 py-3">GPS Coordinates</th>
-                  <th className="px-4 py-3">Device / IP</th>
+                  <th className="px-4 py-3">Device Hash / IP</th>
                   <th className="px-4 py-3">Timestamp</th>
                 </tr>
               </thead>
@@ -141,12 +139,6 @@ export function VoteTable({ surveyId, surveyName }: VoteTableProps) {
                     <td className="px-4 py-3 font-sans font-medium text-zinc-900 dark:text-zinc-100">
                       <div>{v.candidateName}</div>
                       <div className="text-[11px] text-zinc-500">{v.candidateParty}</div>
-                    </td>
-                    <td className="px-4 py-3 text-zinc-800 dark:text-zinc-200">
-                      <span className="inline-flex items-center gap-1.5 font-sans font-semibold">
-                        <Phone className="h-3.5 w-3.5 text-blue-600 shrink-0" />
-                        {v.phone}
-                      </span>
                     </td>
                     <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
                       <a
@@ -164,7 +156,7 @@ export function VoteTable({ surveyId, surveyName }: VoteTableProps) {
                     <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
                       <div className="flex items-center gap-1 text-[11px]">
                         <Laptop className="h-3 w-3 text-zinc-500 shrink-0" />
-                        <span>{v.deviceIdMasked}</span>
+                        <span title="SHA-256 device hash">{v.deviceHash}</span>
                       </div>
                       <div className="text-[10px] text-zinc-400">{v.ip}</div>
                     </td>

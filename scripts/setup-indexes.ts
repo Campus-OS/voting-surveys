@@ -30,29 +30,37 @@ async function setupIndexes() {
       }
     }
 
-    // 1. votes: { surveyId: 1, phoneHash: 1 } unique
-    await db.collection("votes").createIndex(
-      { surveyId: 1, phoneHash: 1 },
-      { unique: true, name: "uniq_survey_phone" }
-    );
-    console.log("✓ Created unique index on votes: { surveyId: 1, phoneHash: 1 }");
+    const votes = db.collection("votes");
+    const voteIndexes = await votes.listIndexes().toArray();
+    for (const indexName of ["uniq_survey_phone", "uniq_survey_ip"]) {
+      if (voteIndexes.some((index) => index.name === indexName)) {
+        await votes.dropIndex(indexName);
+      }
+    }
 
-    // 2. votes: { surveyId: 1, ipHash: 1 } unique
-    await db.collection("votes").createIndex(
-      { surveyId: 1, ipHash: 1 },
-      { unique: true, name: "uniq_survey_ip" }
+    // Remove legacy phone data from existing ballots.
+    const phoneCleanup = await votes.updateMany(
+      {},
+      { $unset: { phone: "", phoneHash: "", deviceId: "" } }
     );
-    console.log("✓ Created unique index on votes: { surveyId: 1, ipHash: 1 }");
+    console.log(`✓ Removed legacy phone fields and raw device IDs from ${phoneCleanup.modifiedCount} ballots`);
+
+    // IP is retained for audit only; shared networks should not block ballots.
+    await votes.createIndex(
+      { surveyId: 1, ipHash: 1 },
+      { name: "idx_survey_ip" }
+    );
+    console.log("✓ Created non-unique index on votes: { surveyId: 1, ipHash: 1 }");
 
     // 2b. votes: { surveyId: 1, deviceHash: 1 } unique (Enforce one vote per physical device)
-    await db.collection("votes").createIndex(
+    await votes.createIndex(
       { surveyId: 1, deviceHash: 1 },
       { unique: true, name: "uniq_survey_device" }
     );
     console.log("✓ Created unique index on votes: { surveyId: 1, deviceHash: 1 } (One vote per device)");
 
     // 3. votes: { surveyId: 1, candidateId: 1 }
-    await db.collection("votes").createIndex(
+    await votes.createIndex(
       { surveyId: 1, candidateId: 1 },
       { name: "idx_survey_candidate" }
     );

@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { BarChart3, RefreshCw, Share2, Vote, ArrowLeft } from "lucide-react";
+import { BarChart3, RefreshCw, Vote, ArrowLeft } from "lucide-react";
 import type { CandidateWithVotes } from "@/lib/types";
 import { ShareButton } from "./share-button";
 
@@ -116,9 +116,9 @@ export function ResultsClient({ surveyId }: { surveyId: string }) {
   return (
     <div className="max-w-3xl mx-auto space-y-6 py-4">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <Link href={`/survey/${surveyId}`}>
+        <Link href={data.isActive ? `/survey/${surveyId}` : "/"}>
           <Button variant="ghost" size="sm" className="gap-1.5">
-            <ArrowLeft className="h-4 w-4" /> Go to Vote Wizard
+            <ArrowLeft className="h-4 w-4" /> {data.isActive ? "Go to Vote Wizard" : "Back to Surveys"}
           </Button>
         </Link>
 
@@ -216,11 +216,15 @@ export function ResultsClient({ surveyId }: { surveyId: string }) {
         </CardContent>
         <CardFooter className="flex justify-between border-t pt-4 text-xs text-zinc-500">
           <span>Zero-Knowledge SHA-256 Ledger Verified</span>
-          <Link href={`/survey/${surveyId}`}>
-            <Button size="sm" className="gap-1.5">
-              <Vote className="h-4 w-4" /> Cast Your Ballot
-            </Button>
-          </Link>
+          {data.isActive ? (
+            <Link href={`/survey/${surveyId}`}>
+              <Button size="sm" className="gap-1.5">
+                <Vote className="h-4 w-4" /> Cast Your Ballot
+              </Button>
+            </Link>
+          ) : (
+            <span className="font-medium text-zinc-600 dark:text-zinc-400">Voting closed · results only</span>
+          )}
         </CardFooter>
       </Card>
     </div>
