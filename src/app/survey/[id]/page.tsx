@@ -46,7 +46,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       };
     }
 
-    const surveyUrl = `${process.env.NEXT_PUBLIC_APP_URL}/survey/${id}`;
+    const surveyUrl = `https://voting-survey.digitaludaantechnologies.in/survey/${id}`;
 
     // उम्मीदवारों के नाम जोड़ें ताकि शेयरिंग प्रीव्यू में दिखें
     const candidateLine =
@@ -78,7 +78,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         locale: "hi_IN",
         images: [
           {
-            url: `${process.env.NEXT_PUBLIC_APP_URL}/api/og?surveyId=${id}`,
+            url: `https://voting-survey.digitaludaantechnologies.in/api/og?surveyId=${id}`,
             width: 1200,
             height: 630,
             alt: survey.name,
@@ -89,7 +89,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         card: "summary_large_image",
         title: survey.name,
         description,
-        images: [`${process.env.NEXT_PUBLIC_APP_URL}/api/og?surveyId=${id}`],
+        images: [`https://voting-survey.digitaludaantechnologies.in/api/og?surveyId=${id}`],
       },
       robots: survey.isActive
         ? { index: true, follow: true }
